@@ -1,0 +1,28 @@
+---
+description: SmartCare Dental Clinic project rules (design tokens, roles, business rules)
+alwaysApply: true
+---
+# SmartCare Dental Clinic
+Web-based dental appointment booking and queue management system (Philippines).
+Stack: Next.js (App Router), TypeScript, Tailwind CSS, shadcn/ui (restyled), Recharts, lucide-react. Mock data + local state (no backend), structured so a database can be added later.
+
+The PNG files in /designs are the single source of truth for visuals. Recreate them exactly: layout, spacing, icons, badges, exact text labels. Never redesign, rename, add, or remove anything.
+
+## Design tokens (exact, from Figma)
+Colors: primary teal #005F50 (buttons, active nav, key numbers); #00685F hover/focus; #0F766E secondary teal. Headings #131B2E; body #3E4947; muted #6E7977; slate #565E74. Borders #BDC9C6; dividers #E2E8F0. Cards #FFFFFF; page bg #FAF8FF. Tinted panels #EFF4FF #F0F3FF #EAEDFF #E5EEFF #DCE9FF. Mint #A8F1DE #ECFDF5 border #A7F3D0. Success #15803D/#16A34A bg #DCFCE7. Danger #BA1A1A bg #FFDAD6 dark #93000A. Warning #F59E0B text #B45309 bg #FEF3C7, orange tint #FFDCC3. Info #006591/#1D4ED8 bg #DCE9FF.
+Fonts: Plus Jakarta Sans for headings (page titles 32-36 bold, section 20-24, card titles 16-17 semibold); Inter for body/UI (11-14px, badges 11 bold); JetBrains Mono for queue tokens, patient IDs, timers. No serif.
+Shape: pill radius badges/chips; 8px buttons/inputs; 12px cards; 16px large panels. Shadows: card 0 1px 2px rgba(0,0,0,.05); raised 0 4px 6px -1px rgba(0,0,0,.1). Focus ring 2px #00685F.
+Put these in the Tailwind theme / CSS variables and reuse everywhere.
+
+## Roles
+Demo login with role selector: Patient, Clerk, Dentist, Admin. Each role sees only its own sidebar/pages. ONLY the Clerk can create, search, and update patient profiles; hide/disable those actions for others.
+
+## Business rules
+- Appointment sources: Online Portal, Walk-in, Messenger (entered manually by staff; NO Facebook API)
+- Payment is pay-at-counter only. NO online payments or gateway.
+- Clerk check-in generates a queue token (#A-025). Emergencies get #E-xxx and go first.
+- Estimated wait = queue position x avg procedure duration + room turnover
+- Simulate real-time with state changes or short polling. No hardware integrations.
+
+## Content fixes (apply even if a design differs)
+Branding is "SmartCare" / "SmartCare Dental" (replace "ApexDental Pro"). Use the peso sign (₱) not $, +63 phone numbers, dental-appropriate placeholder text. Replace "federal guidelines" with "Your records are kept confidential and secure". Sidebars become a hamburger drawer on mobile. Include loading/empty/error states, validation, toasts.

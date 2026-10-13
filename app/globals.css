@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #005f50;
+  --primary-hover: #00685f;
+  --teal-secondary: #0f766e;
+  --heading: #131b2e;
+  --body: #3e4947;
+  --muted: #6e7977;
+  --slate: #565e74;
+  --border: #bdc9c6;
+  --divider: #e2e8f0;
+  --card: #ffffff;
+  --page: #faf8ff;
+  --tint-1: #eff4ff;
+  --tint-2: #f0f3ff;
+  --tint-3: #eaedff;
+  --tint-4: #e5eeff;
+  --tint-5: #dce9ff;
+  --mint: #a8f1de;
+  --mint-bg: #ecfdf5;
+  --mint-border: #a7f3d0;
+  --success: #15803d;
+  --success-2: #16a34a;
+  --success-bg: #dcfce7;
+  --danger: #ba1a1a;
+  --danger-bg: #ffdad6;
+  --danger-dark: #93000a;
+  --warning: #f59e0b;
+  --warning-text: #b45309;
+  --warning-bg: #fef3c7;
+  --orange-tint: #ffdcc3;
+  --info: #006591;
+  --info-2: #1d4ed8;
+  --info-bg: #dce9ff;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-teal: var(--teal-secondary);
+  --color-heading: var(--heading);
+  --color-body: var(--body);
+  --color-muted: var(--muted);
+  --color-slate: var(--slate);
+  --color-border: var(--border);
+  --color-divider: var(--divider);
+  --color-card: var(--card);
+  --color-page: var(--page);
+  --color-tint-1: var(--tint-1);
+  --color-tint-2: var(--tint-2);
+  --color-tint-3: var(--tint-3);
+  --color-tint-4: var(--tint-4);
+  --color-tint-5: var(--tint-5);
+  --color-mint: var(--mint);
+  --color-mint-bg: var(--mint-bg);
+  --color-mint-border: var(--mint-border);
+  --color-success: var(--success);
+  --color-success-2: var(--success-2);
+  --color-success-bg: var(--success-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-dark: var(--danger-dark);
+  --color-warning: var(--warning);
+  --color-warning-text: var(--warning-text);
+  --color-warning-bg: var(--warning-bg);
+  --color-orange-tint: var(--orange-tint);
+  --color-info: var(--info);
+  --color-info-2: var(--info-2);
+  --color-info-bg: var(--info-bg);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-plus-jakarta), var(--font-inter), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --radius-btn: 8px;
+  --radius-card: 12px;
+  --radius-panel: 16px;
+  --radius-pill: 9999px;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-raised: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--page);
+  color: var(--body);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+.font-heading {
+  font-family: var(--font-plus-jakarta), var(--font-inter), ui-sans-serif, sans-serif;
+  color: var(--heading);
+}
+
+*:focus-visible {
+  outline: 2px solid #00685f;
+  outline-offset: 2px;
+}
