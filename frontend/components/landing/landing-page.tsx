@@ -1,0 +1,412 @@
+import Image from "next/image";
+import Link from "next/link";
+import {
+  Armchair,
+  CalendarPlus,
+  CheckCircle2,
+  Handshake,
+  Home,
+  Mail,
+  MapPin,
+  Phone,
+  Shield,
+  Sparkles,
+  Star,
+  Stethoscope,
+  UserRound,
+} from "lucide-react";
+import { SiteHeader } from "@/components/landing/site-header";
+import { Logo } from "@/components/brand/logo";
+
+const FEATURES = [
+  {
+    icon: Home,
+    title: "Discover Your Best Smile",
+    body: "Track your smile progress.",
+  },
+  {
+    icon: Sparkles,
+    title: "Safe and Super Clean Tools",
+    body: "Every single tool goes through a massive cleaning process, and fresh, safe tools are opened just for you, every time.",
+  },
+  {
+    icon: Armchair,
+    title: "Cozy Rooms, Peaceful Care",
+    body: "Relax in our comfortable chairs. Enjoy a quiet, clean, and calm space where we take care of you, gently.",
+  },
+];
+
+const SERVICES = [
+  {
+    icon: "tooth",
+    tag: "Routine Care",
+    tagClass: "bg-mint-bg text-teal",
+    title: "Oral Prophylaxis & Cleaning",
+    body: "Includes ultrasonic removal of mineralized deposits and surface stains, followed by a professional polish.",
+    price: "₱1,500",
+    priceNote: "",
+    sub: "Standard appointment (~45 min)",
+  },
+  {
+    icon: "shield",
+    tag: "Restorative",
+    tagClass: "bg-[#F3E8FF] text-[#7C3AED]",
+    title: "Durable Esthetic Dental Restorations",
+    body: "Precisely shade-matched, light-cured composite bonding to repair decay or defects, preserving healthy structure.",
+    price: "₱1,800",
+    priceNote: "/tooth",
+    sub: "High-grade composite material",
+  },
+  {
+    icon: "cross",
+    tag: "Surgery",
+    tagClass: "bg-mint-bg text-teal",
+    title: "Tooth Extraction (Routine/Surg)",
+    body: "Careful tooth removal prioritized to minimize tissue damage, with specialized painless local anesthesia delivery.",
+    price: "₱2,000+",
+    priceNote: "",
+    sub: "Price varies based on condition complexity",
+  },
+  {
+    icon: "braces",
+    tag: "Orthodontics",
+    tagClass: "bg-mint-bg text-teal",
+    title: "Orthodontics & Clear Braces",
+    body: "Detailed assessment of bite and alignment with advanced 3D scanning technology and digital analysis.",
+    price: "₱1,200",
+    priceNote: "consult",
+    sub: "Includes 3D intraoral scan report",
+  },
+];
+
+const STEPS = [
+  {
+    n: "01",
+    icon: Sparkles,
+    title: "Select Service",
+    body: "Browse our list of services, including routine cleanings, tooth-colored fillings, tooth removals, or brace consultations.",
+  },
+  {
+    n: "02",
+    icon: UserRound,
+    title: "Choose Dentist",
+    body: "Select your preferred dentist based on their background and expertise.",
+  },
+  {
+    n: "03",
+    icon: CalendarPlus,
+    title: "Pick Date & Time Slot",
+    body: "Pick the best day and time for your visit with real-time schedule availability.",
+  },
+  {
+    n: "04",
+    icon: CheckCircle2,
+    title: "Arrive for Easy Care",
+    body: "Enjoy your visit in a clean, disinfected treatment room with attentive support from our friendly team.",
+  },
+];
+
+const DOCTORS = [
+  {
+    name: "Dr. Allyssa Grace, DMD",
+    specialty: "General & Restorative Dentistry",
+    bio: "12 years of experience in tooth-colored fillings, emergency dental care, and gentle deep cleanings.",
+  },
+];
+
+function ServiceIcon({ type }: { type: string }) {
+  const wrap = "flex h-10 w-10 items-center justify-center rounded-[10px] bg-tint-2 text-primary";
+  if (type === "shield") return <span className={wrap}><Shield className="h-5 w-5" /></span>;
+  if (type === "cross") return <span className={wrap}><Stethoscope className="h-5 w-5" /></span>;
+  if (type === "braces") {
+    return (
+      <span className={wrap}>
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+          <path d="M7 8h10M7 16h10M9 8v8M15 8v8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          <rect x="8" y="7" width="2" height="2.4" rx="0.4" fill="currentColor" />
+          <rect x="14" y="7" width="2" height="2.4" rx="0.4" fill="currentColor" />
+          <rect x="8" y="14.6" width="2" height="2.4" rx="0.4" fill="currentColor" />
+          <rect x="14" y="14.6" width="2" height="2.4" rx="0.4" fill="currentColor" />
+        </svg>
+      </span>
+    );
+  }
+  return (
+    <span className={wrap}>
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+        <path d="M12 3.4c2.2 0 3.9 1.2 4.8 2.3.8.9 1.3 2.1 1.7 3 .3.8.1 1.6-.5 2.2-.4.5-1 .8-1.7.8-.7 0-1.2-.3-1.6-.7-.4-.4-.6-1-.8-1.5-.2.5-.4 1.1-.8 1.5-.4.4-.9.7-1.6.7s-1.2-.3-1.6-.7c-.4-.4-.6-1-.8-1.5-.2.5-.4 1.1-.8 1.5-.4.4-.9.7-1.6.7-.7 0-1.3-.3-1.7-.8-.6-.6-.8-1.4-.5-2.2.4-.9.9-2.1 1.7-3C8.1 4.6 9.8 3.4 12 3.4Zm-2.6 9.2c.6 2 1.3 4.6 1.9 6 .3.8 1 1.3 1.6 1 .5-.2.7-.8.6-1.4-.2-1.1-.2-2.5 0-3.3.3 1 .8 2.2.6 3.3-.1.7.2 1.3.7 1.5.7.2 1.3-.3 1.6-1.1.5-1.4 1.1-3.8 1.6-5.8" />
+      </svg>
+    </span>
+  );
+}
+
+export function LandingPage() {
+  return (
+    <div className="min-h-screen bg-white">
+      <SiteHeader />
+
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#F3FAF7] via-white to-white">
+        <div className="mx-auto max-w-[1200px] px-5 pb-16 pt-16 sm:px-8 sm:pb-20 sm:pt-20">
+          <h1 className="max-w-[820px] font-heading text-[32px] font-bold leading-[1.15] tracking-tight text-heading sm:text-[36px]">
+            Book your dental visit with confidence
+          </h1>
+          <p className="mt-4 max-w-[560px] text-[15px] leading-relaxed text-muted">
+            Reserve a convenient date and time, then arrive for your scheduled appointment.
+          </p>
+        </div>
+      </section>
+
+      <section className="bg-tint-2">
+        <div className="mx-auto max-w-[1200px] px-5 py-14 sm:px-8 sm:py-16">
+          <h2 className="max-w-[720px] font-heading text-[28px] font-bold leading-tight text-heading sm:text-[32px]">
+            World-Class Dental Care & Modern Comfort Technology
+          </h2>
+          <p className="mt-3 text-[15px] text-muted">
+            Every suite is designed for your comfort and precise, clean care.
+          </p>
+
+          <div className="mt-8 grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch">
+            <div className="relative overflow-hidden rounded-panel shadow-raised">
+              <Image
+                src="/clinic-suite.jpg"
+                alt="Modern SmartCare treatment suite with dental chair and natural light"
+                width={960}
+                height={720}
+                className="h-full min-h-[320px] w-full object-cover"
+                priority
+              />
+              <span className="absolute bottom-4 left-4 h-3.5 w-8 rounded-pill bg-white/90 shadow-card" />
+            </div>
+            <div className="flex flex-col gap-4">
+              {FEATURES.map((feature) => (
+                <article
+                  key={feature.title}
+                  className="flex gap-4 rounded-card bg-white p-5 shadow-card"
+                >
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] bg-[#CFF5EA] text-primary">
+                    <feature.icon className="h-5 w-5" strokeWidth={1.8} />
+                  </span>
+                  <div>
+                    <h3 className="font-heading text-[16px] font-semibold text-heading">
+                      {feature.title}
+                    </h3>
+                    <p className="mt-1 text-[13px] leading-relaxed text-muted">{feature.body}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="services" className="scroll-mt-24 bg-white">
+        <div className="mx-auto max-w-[1200px] px-5 py-14 sm:px-8 sm:py-16">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-[560px]">
+              <h2 className="font-heading text-[32px] font-bold text-heading">Our Services</h2>
+              <p className="mt-2 text-[14px] leading-relaxed text-muted">
+                Affordable, ethical pricing with zero hidden surcharges or surprise billing. Complete peace of mind for
+                every family member.
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 self-start rounded-pill bg-tint-2 px-4 py-2 text-[12px] font-semibold text-slate">
+              <Handshake className="h-4 w-4 text-primary" />
+              Honest Pricing Model • Direct Over-the-Counter
+            </div>
+          </div>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {SERVICES.map((service) => (
+              <article
+                key={service.title}
+                className="flex flex-col rounded-card border border-divider bg-[#FBFCFB] p-5 shadow-card"
+              >
+                <div className="flex items-start justify-between">
+                  <ServiceIcon type={service.icon} />
+                  <span className={`rounded-pill px-2.5 py-1 text-[11px] font-bold ${service.tagClass}`}>
+                    {service.tag}
+                  </span>
+                </div>
+                <h3 className="mt-4 font-heading text-[16px] font-semibold leading-snug text-heading">
+                  {service.title}
+                </h3>
+                <p className="mt-2 flex-1 text-[13px] leading-relaxed text-muted">{service.body}</p>
+                <p className="mt-6 font-heading text-[28px] font-bold tracking-tight text-primary">
+                  {service.price}
+                  {service.priceNote ? (
+                    <span className="ml-1 text-[13px] font-medium text-teal">{service.priceNote}</span>
+                  ) : null}
+                </p>
+                <p className="mt-1 text-[12px] text-muted">{service.sub}</p>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 rounded-card bg-tint-1 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="flex items-start gap-2 text-[13px] text-body sm:items-center">
+              <Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary sm:mt-0" />
+              <span>
+                <span className="font-semibold text-heading">Clinic Guarantee:</span> No hidden processing or equipment
+                fees. Clear itemized invoices settled over-the-counter upon procedure completion.
+              </span>
+            </p>
+            <Link
+              href="/login?audience=patient&next=/patient/book"
+              className="shrink-0 text-[13px] font-semibold text-primary hover:text-primary-hover"
+            >
+              Select a Procedure →
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-[#F7F8FC] py-10 sm:py-14">
+        <div className="mx-auto max-w-[1000px] px-5 sm:px-8">
+          <div className="rounded-[20px] bg-gradient-to-br from-primary to-[#0A4A40] px-6 py-12 text-center text-white shadow-raised sm:px-16 sm:py-14">
+            <h2 className="font-heading text-[28px] font-bold leading-tight sm:text-[34px]">
+              Ready for a seamless dental visit?
+            </h2>
+            <p className="mx-auto mt-4 max-w-[640px] text-[15px] leading-relaxed text-white/80">
+              Reserve your preferred dental specialist and operatory slot in under 2 minutes. No upfront deposit
+              required.
+            </p>
+            <Link
+              href="/login?audience=patient&next=/patient/book"
+              className="mt-8 inline-flex items-center gap-2 rounded-pill bg-white px-6 py-3 text-[14px] font-semibold text-primary shadow-card hover:bg-mint-bg"
+            >
+              <CalendarPlus className="h-4 w-4" />
+              Book an Appointment Now
+            </Link>
+            <p className="mx-auto mt-8 max-w-[560px] text-[12px] leading-relaxed text-white/55">
+              Comprehensive oral health examinations, restorative treatments, and pediatric dentistry in our comfortable
+              modern clinic.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="how-it-works" className="scroll-mt-24 bg-white">
+        <div className="mx-auto max-w-[1200px] px-5 py-14 sm:px-8 sm:py-16">
+          <p className="text-center text-[11px] font-bold uppercase tracking-[0.18em] text-teal">
+            Effortless Digital Journey
+          </p>
+          <h2 className="mt-2 text-center font-heading text-[28px] font-bold text-heading sm:text-[32px]">
+            How SmartCare Operates in 4 Simple Steps
+          </h2>
+          <p className="mx-auto mt-2 max-w-[640px] text-center text-[14px] text-muted">
+            Designed for maximum convenience. Experience easy healthcare scheduling built around your busy day.
+          </p>
+
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {STEPS.map((step) => (
+              <article key={step.n} className="relative rounded-card border border-divider bg-white p-5 shadow-card">
+                <div className="flex items-start justify-between">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary font-heading text-[13px] font-bold text-white">
+                    {step.n}
+                  </span>
+                  <step.icon className="h-5 w-5 text-border" strokeWidth={1.7} />
+                </div>
+                <h3 className="mt-5 font-heading text-[16px] font-semibold text-heading">{step.title}</h3>
+                <p className="mt-2 text-[13px] leading-relaxed text-muted">{step.body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="doctors" className="scroll-mt-24 bg-[#F7F8FC]">
+        <div className="mx-auto max-w-[1200px] px-5 py-14 sm:px-8 sm:py-16">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-teal">Licensed Dentists</p>
+          <h2 className="mt-2 font-heading text-[32px] font-bold text-heading">Meet Your Attending Dentists</h2>
+          <p className="mt-2 text-[14px] text-muted">
+            Our team combines a gentle, friendly approach with modern digital tools for comfortable, long-lasting
+            results.
+          </p>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {DOCTORS.map((doc, i) => (
+              <article key={`${doc.name}-${i}`} className="overflow-hidden rounded-card bg-white shadow-card">
+                <div className="relative h-[168px] bg-tint-2">
+                  <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-pill bg-white px-2.5 py-1 text-[11px] font-semibold text-heading shadow-card">
+                    <Star className="h-3.5 w-3.5 fill-[#F5B400] text-[#F5B400]" />
+                    4.9 (620 reviews)
+                  </span>
+                </div>
+                <div className="p-5">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-primary">Lead Dentist</p>
+                  <h3 className="mt-1 font-heading text-[16px] font-semibold text-heading">{doc.name}</h3>
+                  <p className="mt-0.5 text-[13px] font-medium text-primary">{doc.specialty}</p>
+                  <p className="mt-2 text-[13px] leading-relaxed text-muted">{doc.bio}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-divider bg-[#F3F5FB]">
+        <div className="mx-auto grid max-w-[1200px] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[1.2fr_1fr_1fr]">
+          <div>
+            <Logo subtitle="" markClassName="h-10 w-10 bg-[#E7F8F3] text-primary" />
+            <p className="-mt-1 mb-3 font-heading text-[16px] font-semibold text-heading">SmartCare Dental</p>
+            <p className="max-w-[360px] text-[13px] leading-relaxed text-muted">
+              Providing ethical, advanced, and affordable oral healthcare. Championing UN SDG 3 (Good Health and
+              Well-being) through transparent pricing and sterile clinical precision.
+            </p>
+          </div>
+          <div>
+            <h3 className="font-heading text-[16px] font-semibold text-heading">Operating Hours</h3>
+            <dl className="mt-3 space-y-2 text-[13px]">
+              <div className="flex justify-between gap-6">
+                <dt className="text-muted">Monday - Friday</dt>
+                <dd className="font-medium text-heading">8:00 AM - 7:00 PM</dd>
+              </div>
+              <div className="flex justify-between gap-6">
+                <dt className="text-muted">Saturday</dt>
+                <dd className="font-medium text-heading">9:00 AM - 5:00 PM</dd>
+              </div>
+              <div className="flex justify-between gap-6">
+                <dt className="text-muted">Sunday</dt>
+                <dd className="font-medium text-primary">Emergency Only</dd>
+              </div>
+            </dl>
+            <p className="mt-3 text-[13px] text-muted">Pre-booked visits and scheduled consultations.</p>
+          </div>
+          <div>
+            <h3 className="font-heading text-[16px] font-semibold text-heading">Contact & Location</h3>
+            <ul className="mt-3 space-y-2.5 text-[13px] text-body">
+              <li className="flex gap-2">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                402 Manila Arts Pavilion, Healthcare Blvd, Suite 201
+              </li>
+              <li className="flex gap-2">
+                <Phone className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                +63 2 8248-CARE
+              </li>
+              <li className="flex gap-2">
+                <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                care@smartcaredental.org
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div className="border-t border-divider">
+          <div className="mx-auto flex max-w-[1200px] flex-col gap-3 px-5 py-5 text-[12px] text-muted sm:flex-row sm:items-center sm:justify-between sm:px-8">
+            <p>© 2025 SmartCare Dental Clinic. All clinical standards certified.</p>
+            <div className="flex flex-wrap gap-5">
+              <Link href="/privacy" className="hover:text-heading">
+                Privacy Policy
+              </Link>
+              <Link href="/terms" className="hover:text-heading">
+                Terms of Care
+              </Link>
+              <Link href="/disclaimer" className="hover:text-heading">
+                Medical Disclaimer
+              </Link>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}

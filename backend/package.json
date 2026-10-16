@@ -1,0 +1,15 @@
+{
+  "name": "smartcare-backend",
+  "version": "1.0.0",
+  "description": "SmartCare Dental - REST API (services catalog, online booking, dentist portal, patient-dentist chat, clinic queue)",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=22.13.0" },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "seed": "node src/seed-cli.js",
+    "reset": "node src/seed-cli.js --reset",
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\""
+  }
+}
