@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "face-api.js": "^0.22.2",
+    "react-router-dom": "^7.18.4"
+  }
+}

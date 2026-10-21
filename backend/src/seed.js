@@ -1,5 +1,5 @@
 import { tx } from "./db.js";
-import { hashPassword } from "./lib/security.js";
+import { hashPassword, verifyPassword } from "./lib/security.js";
 import { addDays, clinicNow, weekdayOf } from "./lib/time.js";
 
 export const DEMO_PASSWORD = "SmartCare123!";
@@ -16,13 +16,16 @@ const SERVICES = [
 ];
 
 function insertUser(db, role, email, fullName, phone) {
-  return Number(db.prepare("INSERT INTO users (role, email, password_hash, full_name, phone) VALUES (?,?,?,?,?)")
+  return Number(db.prepare("INSERT INTO users (role, email, password_hash, full_name, phone, is_demo) VALUES (?,?,?,?,?,1)")
     .run(role, email, hashPassword(DEMO_PASSWORD), fullName, phone).lastInsertRowid);
 }
 
 export function seedIfEmpty(app) {
   const { db, config } = app;
-  if (db.prepare("SELECT COUNT(*) AS n FROM users").get().n > 0) return false;
+  if (db.prepare("SELECT COUNT(*) AS n FROM users").get().n > 0) {
+    provisionLocalStaffAccounts(db, config);
+    return false;
+  }
   const today = clinicNow(config).date;
 
   tx(db, () => {
@@ -39,9 +42,9 @@ export function seedIfEmpty(app) {
     const hoursFor = (days, blocks) => days.flatMap((d) => blocks.map(([s, e]) => [d, s, e]));
     const elena = mkDentist("admin@smartcare.test", "Dr. Elena Santos, DMD", "General Dentistry",
       "Family and preventive dentistry with 12 years of experience.",
-      [...hoursFor([1, 2, 3, 4, 5], [["09:00", "12:00"], ["13:00", "17:00"]]), [6, "09:00", "12:00"]], adminUser);
-    const marco = mkDentist("marco.reyes@smartcare.test", "Dr. Marco Reyes, DMD", "Orthodontics",
-      "Braces, aligners and smile design.", hoursFor([2, 3, 4, 5, 6], [["10:00", "12:00"], ["13:00", "18:00"]]));
+      hoursFor([1, 2, 3, 4, 5, 6], [["08:00", "17:00"]]), adminUser);
+    const marco = mkDentist("doc.petil@smartcare.test", "Doc Petil", "Orthodontics",
+      "Braces, aligners and smile design.", hoursFor([2, 3, 4, 5, 6], [["08:00", "17:00"]]));
 
     // ----- services -----
     for (const [name, cat, desc, price, dur, prep] of SERVICES) {
@@ -51,7 +54,7 @@ export function seedIfEmpty(app) {
 
     // ----- patients -----
     const mkPatient = (code, name, birth, sex, phone, userId, email) => Number(db.prepare(
-      "INSERT INTO patients (code, user_id, full_name, birth_date, sex, phone, email, created_by) VALUES (?,?,?,?,?,?,?,?)",
+      "INSERT INTO patients (code, user_id, full_name, birth_date, sex, phone, email, created_by, is_demo) VALUES (?,?,?,?,?,?,?,?,1)",
     ).run(code, userId, name, birth, sex, phone, email, userId ?? clerkUser).lastInsertRowid);
     const mariaUser = insertUser(db, "patient", "maria.santos@smartcare.test", "Maria Santos", "+639171234567");
     const maria = mkPatient("SC-98214", "Maria Santos", "1992-05-14", "female", "+639171234567", mariaUser, "maria.santos@smartcare.test");
@@ -65,22 +68,22 @@ export function seedIfEmpty(app) {
       return d;
     };
     let ref = 0;
-    const appt = (patient, dentist, service, date, start, end, status, source = "online_portal") => {
+    const appt = (patient, dentist, service, date, start, status, source = "online_portal") => {
       ref += 1;
       db.prepare("INSERT INTO appointments (reference, patient_id, dentist_id, service_id, date, start_time, end_time, status, source, created_by) VALUES (?,?,?,?,?,?,?,?,?,?)")
-        .run(`SC-DEMO${String(ref).padStart(2, "0")}`, patient, dentist, service, date, start, end, status, source, clerkUser);
+        .run(`SC-DEMO${String(ref).padStart(2, "0")}`, patient, dentist, service, date, start, `${String(Number(start.slice(0, 2)) + 1).padStart(2, "0")}:00`, status, source, clerkUser);
     };
-    appt(maria, elena.id, svc["Oral Prophylaxis (Cleaning)"], nextWorkday(today, 1), "10:00", "10:30", "confirmed");
-    appt(maria, elena.id, svc["Composite (Tooth-colored) Filling"], nextWorkday(today, 3), "14:00", "15:00", "pending");
-    appt(juan, elena.id, svc["Consultation & Check-up"], nextWorkday(today, 1), "09:00", "09:30", "pending", "messenger");
-    appt(ana, marco.id, svc["Braces Adjustment"], nextWorkday(today, 2), "14:00", "14:30", "confirmed", "walk_in");
+    appt(maria, elena.id, svc["Oral Prophylaxis (Cleaning)"], nextWorkday(today, 1), "10:00", "confirmed");
+    appt(maria, elena.id, svc["Composite (Tooth-colored) Filling"], nextWorkday(today, 3), "14:00", "pending");
+    appt(juan, elena.id, svc["Consultation & Check-up"], nextWorkday(today, 1), "09:00", "pending", "messenger");
+    appt(ana, marco.id, svc["Braces Adjustment"], nextWorkday(today, 2), "14:00", "confirmed", "walk_in");
     // history
-    appt(maria, elena.id, svc["Oral Prophylaxis (Cleaning)"], addDays(today, -60), "09:00", "09:30", "completed");
-    appt(maria, elena.id, svc["Dental X-ray"], addDays(today, -60), "09:30", "10:00", "completed");
-    appt(juan, elena.id, svc["Tooth Extraction (Simple)"], addDays(today, -21), "13:00", "14:00", "completed", "walk_in");
-    appt(ana, marco.id, svc["Braces Adjustment"], addDays(today, -28), "14:00", "14:30", "completed");
-    appt(juan, elena.id, svc["Teeth Whitening"], addDays(today, -14), "10:00", "11:00", "no_show", "messenger");
-    appt(ana, marco.id, svc["Consultation & Check-up"], addDays(today, -9), "11:00", "11:30", "cancelled");
+    appt(maria, elena.id, svc["Oral Prophylaxis (Cleaning)"], addDays(today, -60), "09:00", "completed");
+    appt(maria, elena.id, svc["Dental X-ray"], addDays(today, -60), "10:00", "completed");
+    appt(juan, elena.id, svc["Tooth Extraction (Simple)"], addDays(today, -21), "13:00", "completed", "walk_in");
+    appt(ana, marco.id, svc["Braces Adjustment"], addDays(today, -28), "14:00", "completed");
+    appt(juan, elena.id, svc["Teeth Whitening"], addDays(today, -14), "10:00", "no_show", "messenger");
+    appt(ana, marco.id, svc["Consultation & Check-up"], addDays(today, -9), "11:00", "cancelled");
 
     // ----- a starter chat thread -----
     const conv = Number(db.prepare("INSERT INTO conversations (patient_id, dentist_id, last_message_at) VALUES (?,?,datetime('now'))").run(maria, elena.id).lastInsertRowid);
@@ -88,5 +91,57 @@ export function seedIfEmpty(app) {
     msg(mariaUser, "Hello Doc! Do I need to fast before my cleaning appointment?");
     msg(elena.uid, "Hi Maria! No fasting needed. Just brush your teeth beforehand and see you soon.");
   });
+  provisionLocalStaffAccounts(db, config);
   return true;
+}
+
+function provisionLocalStaffAccounts(db, config) {
+  if (config.isProd) return;
+  const accounts = [
+    {
+      role: "admin",
+      email: config.bootstrapAdminEmail,
+      password: config.bootstrapAdminPassword,
+      fullName: "Clinic Administrator",
+    },
+  ].filter((account) => account.password);
+  if (!accounts.length) return;
+
+  tx(db, () => {
+    for (const account of accounts) {
+      let user = db.prepare("SELECT * FROM users WHERE email = ?").get(account.email);
+      if (user && user.role !== account.role) {
+        throw new Error(`Bootstrap account email is already assigned to a different role: ${account.email}`);
+      }
+
+      if (!user) {
+        const id = Number(db.prepare(
+          "INSERT INTO users (role, email, password_hash, full_name) VALUES (?,?,?,?)",
+        ).run(account.role, account.email, hashPassword(account.password), account.fullName).lastInsertRowid);
+        user = db.prepare("SELECT * FROM users WHERE id = ?").get(id);
+      } else {
+        const passwordHash = verifyPassword(account.password, user.password_hash)
+          ? user.password_hash
+          : hashPassword(account.password);
+        db.prepare("UPDATE users SET password_hash = ?, full_name = ?, active = 1 WHERE id = ?")
+          .run(passwordHash, account.fullName, user.id);
+      }
+
+      let dentist = db.prepare("SELECT id FROM dentists WHERE user_id = ?").get(user.id);
+      if (!dentist) {
+        const id = Number(db.prepare(
+          "INSERT INTO dentists (user_id, specialty, bio, active) VALUES (?,?,?,1)",
+        ).run(user.id, "General Dentistry", "").lastInsertRowid);
+        dentist = { id };
+        const schedule = db.prepare(
+          "INSERT INTO dentist_schedules (dentist_id, weekday, start_time, end_time) VALUES (?,?,?,?)",
+        );
+        for (let weekday = 1; weekday <= 5; weekday++) {
+          schedule.run(dentist.id, weekday, "08:00", "17:00");
+        }
+      } else {
+        db.prepare("UPDATE dentists SET active = 1 WHERE id = ?").run(dentist.id);
+      }
+    }
+  });
 }

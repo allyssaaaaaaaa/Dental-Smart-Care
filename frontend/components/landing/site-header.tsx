@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { cn } from "@/lib/cn";
 
 const LINKS = [
@@ -33,11 +34,12 @@ export function SiteHeader() {
             </a>
           ))}
           <Link
-            href="/login?audience=staff&switch=1"
+            href="/login"
             className="rounded-pill border border-border bg-white px-4 py-2 text-[13px] font-semibold text-heading shadow-card hover:bg-page"
           >
-            Dentist / Admin Login
+            Sign in
           </Link>
+          <ThemeToggle />
         </nav>
 
         <button
@@ -77,11 +79,12 @@ export function SiteHeader() {
                 </a>
               ))}
               <Link
-                href="/login?audience=staff&switch=1"
+                href="/login"
                 className="mt-3 rounded-pill border border-border px-4 py-2.5 text-center text-[13px] font-semibold"
               >
-                Dentist / Admin Login
+                Sign in
               </Link>
+              <ThemeToggle className="mt-3 justify-center" />
             </div>
           </div>
         </div>

@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Menu, X } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useAuth } from "@/components/auth/auth-provider";
+import { FaceEnrollment } from "@/components/auth/face-enrollment";
 import { NAV_ICONS } from "@/components/layout/nav-icons";
 import { cn } from "@/lib/cn";
 import type { NavItem } from "@/lib/nav";
@@ -119,6 +121,7 @@ export function AppShell({
         ) : null}
         <NavLinks items={items} pathname={pathname} onNavigate={() => setOpenAtPath(null)} variant={role} />
       </div>
+      <FaceEnrollment />
       <div className="mt-auto px-3 pb-4 pt-3">
         {sidebarExtraBottom}
         {showPatientCard && session ? (
@@ -201,6 +204,8 @@ export function AppShell({
           <div className="hidden lg:block" />
           <div className="ml-auto flex items-center gap-3">
             {headerRight}
+            <ThemeToggle className="hidden sm:inline-flex" />
+            <ThemeToggle className="px-2 sm:hidden" />
             {showBell ? (
               <button
                 type="button"

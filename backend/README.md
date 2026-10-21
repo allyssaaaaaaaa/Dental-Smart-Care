@@ -11,18 +11,29 @@ REST API for **SmartCare: Automated Dental Services, Appointment Booking, and Co
 | Patient records and profiles | `routes/patients.js` |
 | Admin analytics, no-show stats, daily ledger CSV | `routes/admin.js` |
 
-**Zero dependencies.** Node's built-in `node:sqlite`, `node:http`, and `node:crypto` only: there is nothing to `npm install`.
-Requires **Node 22.13+** (`node -v`).
+Requires **Node 22.13+** (`node -v`). Without `SUPABASE_DB_URL`, the app uses Node's built-in SQLite. When `SUPABASE_DB_URL` is configured, every backend API uses Supabase PostgreSQL through the `pg` package.
 
 ## Run it
 
 ```bash
 cd backend
 cp .env.example .env        # optional; defaults work for local dev
-npm start                   # http://localhost:4000  (creates data/smartcare.db and seeds sample data)
-npm test                    # 33 end-to-end tests, in-memory DB
+npm start                   # http://localhost:4000 (uses Supabase when SUPABASE_DB_URL is set)
+npm test                    # 43 end-to-end tests, in-memory DB
 npm run reset               # wipe + reseed the database
 ```
+
+## Supabase schema and data import
+
+The Supabase schema at `supabase/schema.sql` creates all 17 application tables, constraints, and indexes at backend startup. It includes the current face-descriptor consent fields, payment records, patient notes, messages/images, and migration history. Row Level Security is enabled without public policies so the tables are not exposed through the Supabase Data API by default. The backend connects with its private PostgreSQL URI; never put that URI in frontend variables.
+
+To copy the existing SQLite data into an empty Supabase database:
+
+1. In Supabase, open **Project Settings → Database → Connection string** and copy a PostgreSQL connection string. Use the session pooler if your network cannot reach the direct database host.
+2. Put the connection string in `backend/.env` as `SUPABASE_DB_URL`. Do not commit this file or share the database password.
+3. From `backend`, run `npm run supabase:import`. The script applies the schema, checks that all destination tables are empty, and then imports the existing records in foreign-key order in one transaction. If a destination table already contains data, it stops rather than merging or overwriting records.
+
+Set `SUPABASE_DB_URL` in `backend/.env` to switch the running API from SQLite to Supabase. The import script is only needed once to copy local records; it refuses to import if destination tables already contain rows. The backend tests use isolated in-memory SQLite databases even when this URL is configured.
 
 ### Local sample accounts (seeded; password for both: `SmartCare123!`)
 
@@ -35,7 +46,7 @@ Patients can create their own account from the login page. The clinic administra
 
 ## Connecting the Next.js frontend
 
-1. Start the API with `npm start` in `backend`, then start the frontend with `npm run dev` in `frontend`. The frontend rewrites `/api/*` to `http://localhost:4000`; set `BACKEND_URL` if the API runs elsewhere.
+1. Start the API with `npm start` in `backend`, then start the frontend with `npm run dev` in `frontend`. The frontend rewrites `/api/*` to `http://localhost:4000`; set `BACKEND_URL` if the API runs elsewhere. Development accepts HTTP loopback origins on any port. In production set `CORS_ORIGIN` to the exact comma-separated frontend origins; the API will refuse to start without it.
 2. Login and patient registration use `/api/auth/login` and `/api/auth/register`. The API sets an `HttpOnly` `sc_token` cookie, and the frontend restores the user session with `/api/auth/me`.
 3. `DEMO_MODE` defaults to `false`. Set it to `true` only for API tests or local development that needs `POST /api/auth/demo-login`.
 4. **Live updates:** `new EventSource("/api/stream", { withCredentials: true })` and listen for
@@ -49,8 +60,8 @@ Patients can create their own account from the login page. The clinic administra
 - **Slot hold:** `POST /api/slot-holds` reserves a slot for 5 min (the countdown in the booking UI). Other patients see it as booked; it's consumed when you book with `holdId`.
 - **Availability** comes from each dentist's weekly hours (split shifts supported, e.g. lunch break) minus time-off, existing appointments, and holds. Past/too-soon times (30-min lead) are returned as `available:false` so the UI can disable them. Bookable up to 90 days ahead. All times are clinic-local (`CLINIC_TZ=Asia/Manila`).
 - **Status flow:** `pending -> confirmed | declined | cancelled`, `confirmed -> completed | no_show | cancelled`. Patients may only cancel their own; completed/no-show only for today or earlier.
-- **The dentist-administrator** manages clinic and patient records (patients can self-register their own account; they can read but not edit their profile).
-- **Chat privacy:** only the patient and the dentist-administrator in a conversation can read it.
+- **The administrator is the clinic dentist** and manages clinic and patient records (patients can self-register their own account; they can read but not edit their profile).
+- **Chat privacy:** only the patient and clinic administrator in a conversation can read it. The administrator can privately contact patients with a clinic booking.
 
 ## Security
 
@@ -60,7 +71,7 @@ scrypt password hashing · HS256 signed tokens (12 h) in `HttpOnly; SameSite=Lax
 
 ## Known limits / next steps
 
-- SQLite is perfect for a capstone and a single clinic. For multiple servers, swap `src/db.js` for Postgres (the SQL is standard apart from `datetime('now')`/`julianday`).
+- SQLite remains the local default. Supabase mode uses one PostgreSQL connection on a worker thread to preserve the API's synchronous database interface; this suits a single backend instance, while higher concurrency deployments should migrate routes to a native asynchronous PostgreSQL API.
 - Rate limiter and SSE hub are in-process (fine for one server).
 - No email/SMS reminders (not in the proposal); `notify()` in `routes/appointments.js` is the place to hook them in.
 - Medical records/inventory/payroll are out of scope per the proposal.

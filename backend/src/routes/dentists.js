@@ -1,17 +1,26 @@
+import crypto from "node:crypto";
 import { tx } from "../db.js";
-import { HttpError, conflict, forbidden, invalid, notFound } from "../lib/errors.js";
+import { conflict, forbidden, invalid, notFound } from "../lib/errors.js";
 import { created, requireAuth, requireRole } from "../lib/router.js";
 import { hashPassword } from "../lib/security.js";
 import { addDays, clinicNow, toMin } from "../lib/time.js";
 import { isDate, parse, parseQuery } from "../lib/validate.js";
-import { getDaySlots, getServiceOrThrow } from "../services/scheduling.js";
+import { assertServiceDentist, BOOKING_DURATION_MIN, getDaySlots, getServiceOrThrow } from "../services/scheduling.js";
 import { dentistOfUser } from "../services/lookup.js";
 
-const DEFAULT_HOURS = [[9, 12], [13, 17]];
+const DEFAULT_HOURS = [[8, 17]];
 
 function dentistView(db, d, { admin = false } = {}) {
   const u = db.prepare("SELECT full_name, email, phone FROM users WHERE id = ?").get(d.user_id);
   const weekly = db.prepare("SELECT weekday, start_time, end_time FROM dentist_schedules WHERE dentist_id = ? ORDER BY weekday, start_time").all(d.id);
+  const reviewSummary = db.prepare(
+    "SELECT ROUND(AVG(rating), 1) AS average_rating, COUNT(*) AS review_count FROM dentist_reviews WHERE dentist_id = ?",
+  ).get(d.id);
+  const reviews = db.prepare(
+    `SELECT rating, comment, created_at FROM dentist_reviews
+     WHERE dentist_id = ? AND is_public = 1 AND trim(comment) != ''
+     ORDER BY created_at DESC, id DESC LIMIT 3`,
+  ).all(d.id);
   return {
     id: d.id,
     name: u.full_name,
@@ -19,8 +28,15 @@ function dentistView(db, d, { admin = false } = {}) {
     bio: d.bio,
     status: d.status,
     active: Boolean(d.active),
+    ratingAverage: reviewSummary.average_rating,
+    reviewCount: reviewSummary.review_count,
+    reviews: reviews.map((review) => ({
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.created_at,
+    })),
     schedule: weekly.map((w) => ({ weekday: w.weekday, startTime: w.start_time, endTime: w.end_time })),
-    ...(admin ? { email: u.email, phone: u.phone, userId: d.user_id } : {}),
+    ...(admin ? { ...(u.active ? { email: u.email, phone: u.phone } : {}), userId: d.user_id } : {}),
   };
 }
 
@@ -60,25 +76,24 @@ export default function register(router) {
   router.post("/api/dentists", requireRole("admin"), (ctx) => {
     const data = parse(ctx.body, {
       fullName: { type: "string", required: true, min: 2, max: 120 },
-      email: { type: "email", required: true },
-      password: { type: "password", required: true },
-      phone: { type: "phone" },
       specialty: { type: "string", max: 100, default: "General Dentistry" },
       bio: { type: "string", max: 1000, default: "" },
     });
     const id = tx(ctx.db, () => {
-      if (ctx.db.prepare("SELECT 1 FROM users WHERE email = ?").get(data.email)) {
-        throw new HttpError(409, "email_taken", "An account with this email already exists", { email: "Already registered" });
-      }
-      const u = ctx.db.prepare("INSERT INTO users (role, email, password_hash, full_name, phone) VALUES ('dentist',?,?,?,?)")
-        .run(data.email, hashPassword(data.password), data.fullName, data.phone ?? null);
+      const email = `directory-${crypto.randomUUID()}@clinic.invalid`;
+      const password = crypto.randomBytes(32).toString("hex");
+      const u = ctx.db.prepare(
+        "INSERT INTO users (role, email, password_hash, full_name, active) VALUES ('dentist',?,?,?,0)",
+      ).run(email, hashPassword(password), data.fullName);
       const d = ctx.db.prepare("INSERT INTO dentists (user_id, specialty, bio) VALUES (?,?,?)").run(u.lastInsertRowid, data.specialty, data.bio);
       const blocks = [];
       for (let wd = 1; wd <= 5; wd++) for (const [s, e] of DEFAULT_HOURS) blocks.push({ weekday: wd, startTime: `${String(s).padStart(2, "0")}:00`, endTime: `${String(e).padStart(2, "0")}:00` });
       replaceSchedule(ctx.db, d.lastInsertRowid, blocks);
       return d.lastInsertRowid;
     });
-    return created(dentistView(ctx.db, ctx.db.prepare("SELECT * FROM dentists WHERE id = ?").get(id), { admin: true }));
+    const item = dentistView(ctx.db, ctx.db.prepare("SELECT * FROM dentists WHERE id = ?").get(id), { admin: true });
+    ctx.hub.toCatalog("clinic.catalog.updated", { kind: "dentist", action: "created", id });
+    return created(item);
   });
 
   router.get("/api/dentists/:id", (ctx) => dentistView(ctx.db, resolveDentist(ctx), { admin: ctx.user?.role === "admin" }));
@@ -97,10 +112,17 @@ export default function register(router) {
         .run(data.specialty ?? d.specialty, data.bio ?? d.bio, data.active === undefined ? d.active : Number(data.active), d.id);
       if (data.fullName) ctx.db.prepare("UPDATE users SET full_name = ? WHERE id = ?").run(data.fullName, d.user_id);
       if (data.phone) ctx.db.prepare("UPDATE users SET phone = ? WHERE id = ?").run(data.phone, d.user_id);
-      if (data.active === false) ctx.db.prepare("UPDATE users SET active = 0 WHERE id = ?").run(d.user_id);
-      if (data.active === true) ctx.db.prepare("UPDATE users SET active = 1 WHERE id = ?").run(d.user_id);
     });
-    return dentistView(ctx.db, ctx.db.prepare("SELECT * FROM dentists WHERE id = ?").get(d.id), { admin: true });
+    const item = dentistView(ctx.db, ctx.db.prepare("SELECT * FROM dentists WHERE id = ?").get(d.id), { admin: true });
+    ctx.hub.toCatalog("clinic.catalog.updated", { kind: "dentist", action: data.active === false ? "deleted" : "updated", id: d.id });
+    return item;
+  });
+
+  router.delete("/api/dentists/:id", requireRole("admin"), (ctx) => {
+    const d = resolveDentist(ctx, { allowInactive: true });
+    ctx.db.prepare("UPDATE dentists SET active = 0 WHERE id = ?").run(d.id);
+    ctx.hub.toCatalog("clinic.catalog.updated", { kind: "dentist", action: "deleted", id: d.id });
+    return undefined;
   });
 
   // Duty status toggle: Available / On Break / Off Duty
@@ -118,8 +140,9 @@ export default function register(router) {
     const d = resolveDentist(ctx);
     const q = parseQuery(ctx.query, { date: { type: "date", required: true }, serviceId: { type: "int", required: true } });
     const service = getServiceOrThrow(ctx.db, q.serviceId);
-    const day = getDaySlots(ctx.app, { dentistId: d.id, date: q.date, durationMin: service.duration_min, holdOwnerUserId: ctx.user?.id ?? 0 });
-    return { date: q.date, dentistId: d.id, service: { id: service.id, name: service.name, durationMin: service.duration_min }, ...day };
+    assertServiceDentist(ctx.db, service, d.id);
+    const day = getDaySlots(ctx.app, { dentistId: d.id, date: q.date, durationMin: BOOKING_DURATION_MIN, holdOwnerUserId: ctx.user?.id ?? 0 });
+    return { date: q.date, dentistId: d.id, service: { id: service.id, name: service.name, durationMin: BOOKING_DURATION_MIN }, ...day };
   });
 
   router.get("/api/dentists/:id/availability/calendar", (ctx) => {
@@ -127,9 +150,10 @@ export default function register(router) {
     const q = parseQuery(ctx.query, { month: { type: "string", required: true, min: 7, max: 7 }, serviceId: { type: "int", required: true } });
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(q.month)) throw invalid("month must be YYYY-MM", { month: "Invalid month" });
     const service = getServiceOrThrow(ctx.db, q.serviceId);
+    assertServiceDentist(ctx.db, service, d.id);
     const days = [];
     for (let date = `${q.month}-01`; date.startsWith(q.month); date = addDays(date, 1)) {
-      const day = getDaySlots(ctx.app, { dentistId: d.id, date, durationMin: service.duration_min, holdOwnerUserId: ctx.user?.id ?? 0 });
+      const day = getDaySlots(ctx.app, { dentistId: d.id, date, durationMin: BOOKING_DURATION_MIN, holdOwnerUserId: ctx.user?.id ?? 0 });
       days.push({ date, dayStatus: day.dayStatus, availableSlots: day.slots.filter((s) => s.available).length });
     }
     return { month: q.month, dentistId: d.id, days };

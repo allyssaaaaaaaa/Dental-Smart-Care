@@ -1,5 +1,5 @@
 import { forbidden, notFound } from "../lib/errors.js";
-import { ageFrom, clinicNow, iso } from "../lib/time.js";
+import { ageFrom, clinicNow, iso, toMin } from "../lib/time.js";
 
 export const patientOfUser = (db, userId) => db.prepare("SELECT * FROM patients WHERE user_id = ?").get(userId);
 export const dentistOfUser = (db, userId) => db.prepare("SELECT * FROM dentists WHERE user_id = ?").get(userId);
@@ -55,15 +55,20 @@ export const serviceView = (s) => ({
 
 export const APPT_SELECT = `
   SELECT a.*, p.full_name AS patient_name, p.code AS patient_code, p.phone AS patient_phone,
+         p.user_id AS patient_user_id,
+         p.is_demo AS patient_is_demo,
          du.full_name AS dentist_name, d.specialty AS dentist_specialty,
-         s.name AS service_name, s.price_php, s.duration_min
+         s.name AS service_name, s.category AS service_category, s.price_php, s.duration_min,
+         pay.status AS payment_status, pay.amount_centavos AS payment_amount_centavos
   FROM appointments a
   JOIN patients p  ON p.id = a.patient_id
+  LEFT JOIN users pu ON pu.id = p.user_id
   JOIN dentists d  ON d.id = a.dentist_id
   JOIN users du    ON du.id = d.user_id
-  JOIN services s  ON s.id = a.service_id`;
+  JOIN services s  ON s.id = a.service_id
+  LEFT JOIN appointment_payments pay ON pay.appointment_id = a.id`;
 
-export const appointmentView = (a) => ({
+export const appointmentView = (a, patientReview) => ({
   id: a.id,
   reference: a.reference,
   status: a.status,
@@ -73,9 +78,26 @@ export const appointmentView = (a) => ({
   endTime: a.end_time,
   notes: a.notes,
   statusReason: a.status_reason,
-  patient: { id: a.patient_id, code: a.patient_code, fullName: a.patient_name, phone: a.patient_phone },
+  patient: {
+    id: a.patient_id,
+    code: a.patient_code,
+    fullName: a.patient_name,
+    phone: a.patient_phone,
+    hasAccount: Boolean(a.patient_user_id) && !Boolean(a.patient_is_demo),
+  },
   dentist: { id: a.dentist_id, name: a.dentist_name, specialty: a.dentist_specialty },
-  service: { id: a.service_id, name: a.service_name, pricePhp: a.price_php, durationMin: a.duration_min },
+  service: {
+    id: a.service_id,
+    name: a.service_name,
+    category: a.service_category,
+    pricePhp: a.price_php,
+    durationMin: toMin(a.end_time) - toMin(a.start_time),
+  },
+  payment: {
+    status: a.payment_status ?? (a.source === "online_portal" ? "unpaid" : "not_required"),
+    depositAmountPhp: (a.payment_amount_centavos ?? 0) / 100,
+  },
+  ...(patientReview !== undefined ? { patientReview } : {}),
   createdAt: iso(a.created_at),
 });
 

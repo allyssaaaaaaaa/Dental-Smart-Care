@@ -1,19 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { X } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/brand/logo";
 import { useAuth } from "@/components/auth/auth-provider";
+import { FaceCameraCheck } from "@/components/auth/face-camera-check";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 const inputClass =
   "mt-1.5 w-full rounded-btn border border-divider bg-white px-3 py-2.5 text-[14px] text-heading outline-none focus:border-primary focus:ring-2 focus:ring-primary/15";
 
 export function LoginForm() {
-  const searchParams = useSearchParams();
   const { login, register } = useAuth();
-  const next = searchParams.get("next") ?? undefined;
-  const staffLogin = searchParams.get("audience") === "staff";
 
   const [creatingAccount, setCreatingAccount] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -29,10 +29,10 @@ export function LoginForm() {
     setSubmitting(true);
     try {
       if (creatingAccount) {
-        await register({ fullName, email, phone, password }, next);
+        await register({ fullName, email, phone, password });
         toast.success("Your patient account has been created.");
       } else {
-        await login(email, password, next);
+        await login(email, password);
         toast.success("You are signed in.");
       }
     } catch (cause) {
@@ -45,17 +45,26 @@ export function LoginForm() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-page px-4 py-10">
-      <div className="w-full max-w-[480px] rounded-panel border border-divider bg-white p-8 shadow-raised">
+      <div className="relative w-full max-w-[480px] rounded-panel border border-divider bg-white p-8 shadow-raised">
+        <Link
+          href="/"
+          aria-label="Back to home page"
+          title="Back to home"
+          className="absolute right-5 top-5 inline-flex h-9 w-9 items-center justify-center rounded-full text-muted transition hover:bg-page hover:text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <X size={20} aria-hidden="true" />
+        </Link>
+        <div className="mb-5 flex justify-end pr-8">
+          <ThemeToggle />
+        </div>
         <Logo subtitle="Dental Clinic" />
         <h1 className="mt-6 font-heading text-[28px] font-bold text-heading">
-          {creatingAccount ? "Create a patient account" : staffLogin ? "Clinic sign in" : "Welcome back"}
+          {creatingAccount ? "Create a patient account" : "Welcome back"}
         </h1>
         <p className="mt-2 text-[14px] leading-relaxed text-muted">
           {creatingAccount
             ? "Register to book appointments and keep track of your visits."
-            : staffLogin
-              ? "Sign in to the clinic administrator and dentist workspace."
-              : "Sign in to your patient account or create one to book an appointment."}
+            : "Sign in to your patient, dentist, or administrator account."}
         </p>
 
         <form onSubmit={submit} className="mt-6 space-y-4">
@@ -130,21 +139,21 @@ export function LoginForm() {
           </button>
         </form>
 
-        {!staffLogin ? (
-          <p className="mt-5 text-center text-[13px] text-muted">
-            {creatingAccount ? "Already have an account?" : "New to the clinic?"}{" "}
-            <button
-              type="button"
-              onClick={() => {
-                setCreatingAccount((current) => !current);
-                setError("");
-              }}
-              className="font-semibold text-primary hover:underline"
-            >
-              {creatingAccount ? "Sign in" : "Create a patient account"}
-            </button>
-          </p>
-        ) : null}
+        <FaceCameraCheck />
+
+        <p className="mt-5 text-center text-[13px] text-muted">
+          {creatingAccount ? "Already have an account?" : "New to the clinic?"}{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setCreatingAccount((current) => !current);
+              setError("");
+            }}
+            className="font-semibold text-primary hover:underline"
+          >
+            {creatingAccount ? "Sign in" : "Create a patient account"}
+          </button>
+        </p>
       </div>
     </div>
   );

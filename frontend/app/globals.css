@@ -35,6 +35,42 @@
   --info-bg: #dce9ff;
 }
 
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --primary: #5eead4;
+  --primary-hover: #99f6e4;
+  --teal-secondary: #5eead4;
+  --heading: #f1f5f9;
+  --body: #d1d5db;
+  --muted: #a1aab8;
+  --slate: #c4cbd5;
+  --border: #475569;
+  --divider: #334155;
+  --card: #17212b;
+  --page: #0d141b;
+  --tint-1: #1a2832;
+  --tint-2: #1b3038;
+  --tint-3: #203943;
+  --tint-4: #24444b;
+  --tint-5: #2b5158;
+  --mint: #5eead4;
+  --mint-bg: #123b35;
+  --mint-border: #23675b;
+  --success: #86efac;
+  --success-2: #4ade80;
+  --success-bg: #153b27;
+  --danger: #fca5a5;
+  --danger-bg: #4b2025;
+  --danger-dark: #fecaca;
+  --warning: #fbbf24;
+  --warning-text: #fcd34d;
+  --warning-bg: #453512;
+  --orange-tint: #57321f;
+  --info: #7dd3fc;
+  --info-2: #93c5fd;
+  --info-bg: #1e3550;
+}
+
 @theme inline {
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
@@ -99,6 +135,28 @@ h4,
 .font-heading {
   font-family: var(--font-plus-jakarta), var(--font-inter), ui-sans-serif, sans-serif;
   color: var(--heading);
+}
+
+html[data-theme] body,
+html[data-theme] body :is([class*="bg-"], [class*="text-"], [class*="border-"]) {
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+html[data-theme="dark"] .bg-white {
+  background-color: var(--card);
+}
+
+html[data-theme="dark"] .text-white {
+  color: #fff;
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+  color-scheme: dark;
 }
 
 *:focus-visible {

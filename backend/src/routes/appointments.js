@@ -8,7 +8,7 @@ import {
   APPT_SELECT, appointmentView, dentistOfUser, getAppointmentRow, getPatientOrThrow, patientOfUser, requirePatientProfile,
 } from "../services/lookup.js";
 import {
-  assertPatientFree, assertSlotBookable, getDentistOrThrow, getServiceOrThrow, purgeExpiredHolds,
+  assertPatientFree, assertServiceDentist, assertSlotBookable, BOOKING_DURATION_MIN, getDentistOrThrow, getServiceOrThrow, purgeExpiredHolds,
 } from "../services/scheduling.js";
 
 // from-status -> allowed next statuses
@@ -68,12 +68,13 @@ export default function register(router) {
     });
     const service = getServiceOrThrow(ctx.db, d.serviceId);
     getDentistOrThrow(ctx.db, d.dentistId);
+    assertServiceDentist(ctx.db, service, d.dentistId);
     const hold = tx(ctx.db, () => {
-      assertSlotBookable(ctx.app, { dentistId: d.dentistId, date: d.date, startTime: d.startTime, durationMin: service.duration_min, holdOwnerUserId: ctx.user.id });
+      assertSlotBookable(ctx.app, { dentistId: d.dentistId, date: d.date, startTime: d.startTime, holdOwnerUserId: ctx.user.id });
       ctx.db.prepare("DELETE FROM slot_holds WHERE user_id = ?").run(ctx.user.id);
       const expiresAt = ctx.config.clock().getTime() + ctx.config.slotHoldMin * 60_000;
       const r = ctx.db.prepare("INSERT INTO slot_holds (user_id, dentist_id, date, start_time, end_time, expires_at) VALUES (?,?,?,?,?,?)")
-        .run(ctx.user.id, d.dentistId, d.date, d.startTime, fromMin(toMin(d.startTime) + service.duration_min), expiresAt);
+        .run(ctx.user.id, d.dentistId, d.date, d.startTime, fromMin(toMin(d.startTime) + BOOKING_DURATION_MIN), expiresAt);
       return { id: Number(r.lastInsertRowid), expiresAt };
     });
     return created({ id: hold.id, expiresAt: new Date(hold.expiresAt).toISOString(), secondsLeft: ctx.config.slotHoldMin * 60 });
@@ -106,9 +107,10 @@ export default function register(router) {
     const row = tx(ctx.db, () => {
       const service = getServiceOrThrow(ctx.db, d.serviceId);
       getDentistOrThrow(ctx.db, d.dentistId);
+      assertServiceDentist(ctx.db, service, d.dentistId);
       if (d.holdId) consumeHold(ctx, d.holdId, d);
-      assertSlotBookable(ctx.app, { dentistId: d.dentistId, date: d.date, startTime: d.startTime, durationMin: service.duration_min, holdOwnerUserId: ctx.user.id });
-      const endTime = fromMin(toMin(d.startTime) + service.duration_min);
+      assertSlotBookable(ctx.app, { dentistId: d.dentistId, date: d.date, startTime: d.startTime, holdOwnerUserId: ctx.user.id });
+      const endTime = fromMin(toMin(d.startTime) + BOOKING_DURATION_MIN);
       assertPatientFree(ctx.db, { patientId: patient.id, date: d.date, startTime: d.startTime, endTime });
       const r = ctx.db.prepare(
         `INSERT INTO appointments (reference, patient_id, dentist_id, service_id, date, start_time, end_time, status, source, notes, created_by)
@@ -141,6 +143,7 @@ export default function register(router) {
     if (ctx.user.role === "patient") { where.push("a.patient_id = ?"); args.push(requirePatientProfile(ctx.db, ctx.user).id); }
     else if (ctx.user.role === "dentist") { where.push("a.dentist_id = ?"); args.push(dentistOfUser(ctx.db, ctx.user.id).id); }
     else {
+      where.push("p.is_demo = 0");
       if (q.dentistId) { where.push("a.dentist_id = ?"); args.push(q.dentistId); }
       if (q.patientId) { where.push("a.patient_id = ?"); args.push(q.patientId); }
     }
@@ -165,7 +168,51 @@ export default function register(router) {
     const total = ctx.db.prepare(`SELECT COUNT(*) AS n FROM (${APPT_SELECT} ${clause})`).get(...args).n;
     const rows = ctx.db.prepare(`${APPT_SELECT} ${clause} ORDER BY a.date ${order}, a.start_time ${order} LIMIT ? OFFSET ?`)
       .all(...args, q.pageSize, (q.page - 1) * q.pageSize);
-    return { items: rows.map(appointmentView), total, page: q.page, pageSize: q.pageSize };
+    const items = rows.map((row) => {
+      if (ctx.user.role !== "patient") return appointmentView(row);
+      const review = ctx.db.prepare(
+        "SELECT rating, comment, is_public, created_at FROM dentist_reviews WHERE appointment_id = ? AND patient_id = ?",
+      ).get(row.id, row.patient_id);
+      return appointmentView(row, review ? {
+        rating: review.rating,
+        comment: review.comment,
+        isPublic: Boolean(review.is_public),
+        createdAt: review.created_at,
+      } : null);
+    });
+    return { items, total, page: q.page, pageSize: q.pageSize };
+  });
+
+  router.post("/api/appointments/:id/review", requireRole("patient"), (ctx) => {
+    const data = parse(ctx.body, {
+      rating: { type: "int", required: true, min: 1, max: 5 },
+      comment: { type: "string", max: 1000 },
+      isPublic: { type: "bool" },
+    });
+    const patient = requirePatientProfile(ctx.db, ctx.user);
+    const appointment = getAppointmentRow(ctx.db, ctx.params.id);
+    if (appointment.patient_id !== patient.id) throw notFound("Appointment");
+    if (appointment.status !== "completed") {
+      throw conflict("review_not_allowed", "You can review an appointment after the clinic marks it completed.");
+    }
+    const comment = data.comment ?? "";
+    if (data.isPublic && !comment.trim()) {
+      throw invalid("Add a comment before choosing to publish it", { comment: "A public comment cannot be blank" });
+    }
+    const result = ctx.db.prepare(
+      `INSERT INTO dentist_reviews (appointment_id, patient_id, dentist_id, rating, comment, is_public)
+       VALUES (?,?,?,?,?,?)`,
+    ).run(appointment.id, patient.id, appointment.dentist_id, data.rating, comment, Number(Boolean(data.isPublic && comment.trim())));
+    const review = {
+      id: Number(result.lastInsertRowid),
+      dentistId: appointment.dentist_id,
+      rating: data.rating,
+      comment,
+      isPublic: Boolean(data.isPublic && comment.trim()),
+      createdAt: new Date().toISOString(),
+    };
+    ctx.hub.toCatalog("dentist.review.updated", { dentistId: appointment.dentist_id });
+    return created(review);
   });
 
   router.get("/api/appointments/:id", requireAuth, (ctx) => {
@@ -185,6 +232,13 @@ export default function register(router) {
     if (!ROLE_CAN_SET[ctx.user.role]?.includes(status)) throw forbidden(`Your role cannot set status "${status}"`);
     if (!TRANSITIONS[row.status]?.includes(status)) {
       throw conflict("invalid_transition", `Cannot change an appointment from "${row.status}" to "${status}"`);
+    }
+    if (
+      status === "confirmed" &&
+      row.source === "online_portal" &&
+      ctx.db.prepare("SELECT 1 FROM appointment_payments WHERE appointment_id = ? AND status = 'paid'").get(row.id) === undefined
+    ) {
+      throw conflict("deposit_required", "The 50% online booking deposit must be paid before confirmation.");
     }
     const now = clinicNow(ctx.config);
     const startsAt = `${row.date} ${row.start_time}`;
@@ -214,9 +268,10 @@ export default function register(router) {
       if (`${row.date} ${row.start_time}` <= `${now.date} ${now.time}`) throw conflict("too_late", "This appointment has already started");
       const dentistId = d.dentistId ?? row.dentist_id;
       getDentistOrThrow(ctx.db, dentistId);
+      assertServiceDentist(ctx.db, getServiceOrThrow(ctx.db, row.service_id), dentistId);
       if (d.holdId) consumeHold(ctx, d.holdId, { dentistId, date: d.date, startTime: d.startTime });
-      assertSlotBookable(ctx.app, { dentistId, date: d.date, startTime: d.startTime, durationMin: row.duration_min, holdOwnerUserId: ctx.user.id, ignoreApptId: row.id });
-      const endTime = fromMin(toMin(d.startTime) + row.duration_min);
+      assertSlotBookable(ctx.app, { dentistId, date: d.date, startTime: d.startTime, holdOwnerUserId: ctx.user.id, ignoreApptId: row.id });
+      const endTime = fromMin(toMin(d.startTime) + BOOKING_DURATION_MIN);
       assertPatientFree(ctx.db, { patientId: row.patient_id, date: d.date, startTime: d.startTime, endTime, ignoreApptId: row.id });
       // A patient-initiated change goes back to the dentist for confirmation; staff changes stay as-is
       const status = ctx.user.role === "patient" ? "pending" : row.status;

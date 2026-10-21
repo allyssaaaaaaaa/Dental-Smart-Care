@@ -1,6 +1,6 @@
 export const ROLES = ["patient", "admin"] as const;
 export type AuthRole = (typeof ROLES)[number];
-export type Role = AuthRole | "clerk" | "dentist";
+export type Role = AuthRole | "clerk";
 
 export type Session = {
   id: number;
@@ -22,18 +22,11 @@ export function isRole(value: string | undefined | null): value is AuthRole {
   return value === "patient" || value === "admin";
 }
 
-export function roleFromPath(pathname: string): AuthRole | null {
+export function roleFromPath(pathname: string): Role | null {
   if (pathname === "/patient" || pathname.startsWith("/patient/")) return "patient";
-  if (
-    pathname === "/admin" ||
-    pathname.startsWith("/admin/") ||
-    pathname === "/clerk" ||
-    pathname.startsWith("/clerk/") ||
-    pathname === "/dentist" ||
-    pathname.startsWith("/dentist/")
-  ) {
-    return "admin";
-  }
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) return "admin";
+  if (pathname === "/dentist" || pathname.startsWith("/dentist/")) return "admin";
+  if (pathname === "/clerk" || pathname.startsWith("/clerk/")) return "admin";
   return null;
 }
 

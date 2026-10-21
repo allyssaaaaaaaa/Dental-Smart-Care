@@ -9,14 +9,13 @@ import {
   Mail,
   MapPin,
   Phone,
-  Shield,
   Sparkles,
-  Star,
-  Stethoscope,
   UserRound,
 } from "lucide-react";
 import { SiteHeader } from "@/components/landing/site-header";
 import { Logo } from "@/components/brand/logo";
+import { DentistDirectory } from "@/components/landing/dentist-directory";
+import { ServiceDirectory } from "@/components/landing/service-directory";
 
 const FEATURES = [
   {
@@ -33,49 +32,6 @@ const FEATURES = [
     icon: Armchair,
     title: "Cozy Rooms, Peaceful Care",
     body: "Relax in our comfortable chairs. Enjoy a quiet, clean, and calm space where we take care of you, gently.",
-  },
-];
-
-const SERVICES = [
-  {
-    icon: "tooth",
-    tag: "Routine Care",
-    tagClass: "bg-mint-bg text-teal",
-    title: "Oral Prophylaxis & Cleaning",
-    body: "Includes ultrasonic removal of mineralized deposits and surface stains, followed by a professional polish.",
-    price: "₱1,500",
-    priceNote: "",
-    sub: "Standard appointment (~45 min)",
-  },
-  {
-    icon: "shield",
-    tag: "Restorative",
-    tagClass: "bg-[#F3E8FF] text-[#7C3AED]",
-    title: "Durable Esthetic Dental Restorations",
-    body: "Precisely shade-matched, light-cured composite bonding to repair decay or defects, preserving healthy structure.",
-    price: "₱1,800",
-    priceNote: "/tooth",
-    sub: "High-grade composite material",
-  },
-  {
-    icon: "cross",
-    tag: "Surgery",
-    tagClass: "bg-mint-bg text-teal",
-    title: "Tooth Extraction (Routine/Surg)",
-    body: "Careful tooth removal prioritized to minimize tissue damage, with specialized painless local anesthesia delivery.",
-    price: "₱2,000+",
-    priceNote: "",
-    sub: "Price varies based on condition complexity",
-  },
-  {
-    icon: "braces",
-    tag: "Orthodontics",
-    tagClass: "bg-mint-bg text-teal",
-    title: "Orthodontics & Clear Braces",
-    body: "Detailed assessment of bite and alignment with advanced 3D scanning technology and digital analysis.",
-    price: "₱1,200",
-    priceNote: "consult",
-    sub: "Includes 3D intraoral scan report",
   },
 ];
 
@@ -105,40 +61,6 @@ const STEPS = [
     body: "Enjoy your visit in a clean, disinfected treatment room with attentive support from our friendly team.",
   },
 ];
-
-const DOCTORS = [
-  {
-    name: "Dr. Allyssa Grace, DMD",
-    specialty: "General & Restorative Dentistry",
-    bio: "12 years of experience in tooth-colored fillings, emergency dental care, and gentle deep cleanings.",
-  },
-];
-
-function ServiceIcon({ type }: { type: string }) {
-  const wrap = "flex h-10 w-10 items-center justify-center rounded-[10px] bg-tint-2 text-primary";
-  if (type === "shield") return <span className={wrap}><Shield className="h-5 w-5" /></span>;
-  if (type === "cross") return <span className={wrap}><Stethoscope className="h-5 w-5" /></span>;
-  if (type === "braces") {
-    return (
-      <span className={wrap}>
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
-          <path d="M7 8h10M7 16h10M9 8v8M15 8v8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-          <rect x="8" y="7" width="2" height="2.4" rx="0.4" fill="currentColor" />
-          <rect x="14" y="7" width="2" height="2.4" rx="0.4" fill="currentColor" />
-          <rect x="8" y="14.6" width="2" height="2.4" rx="0.4" fill="currentColor" />
-          <rect x="14" y="14.6" width="2" height="2.4" rx="0.4" fill="currentColor" />
-        </svg>
-      </span>
-    );
-  }
-  return (
-    <span className={wrap}>
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-        <path d="M12 3.4c2.2 0 3.9 1.2 4.8 2.3.8.9 1.3 2.1 1.7 3 .3.8.1 1.6-.5 2.2-.4.5-1 .8-1.7.8-.7 0-1.2-.3-1.6-.7-.4-.4-.6-1-.8-1.5-.2.5-.4 1.1-.8 1.5-.4.4-.9.7-1.6.7s-1.2-.3-1.6-.7c-.4-.4-.6-1-.8-1.5-.2.5-.4 1.1-.8 1.5-.4.4-.9.7-1.6.7-.7 0-1.3-.3-1.7-.8-.6-.6-.8-1.4-.5-2.2.4-.9.9-2.1 1.7-3C8.1 4.6 9.8 3.4 12 3.4Zm-2.6 9.2c.6 2 1.3 4.6 1.9 6 .3.8 1 1.3 1.6 1 .5-.2.7-.8.6-1.4-.2-1.1-.2-2.5 0-3.3.3 1 .8 2.2.6 3.3-.1.7.2 1.3.7 1.5.7.2 1.3-.3 1.6-1.1.5-1.4 1.1-3.8 1.6-5.8" />
-      </svg>
-    </span>
-  );
-}
 
 export function LandingPage() {
   return (
@@ -215,43 +137,11 @@ export function LandingPage() {
             </div>
           </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {SERVICES.map((service) => (
-              <article
-                key={service.title}
-                className="flex flex-col rounded-card border border-divider bg-[#FBFCFB] p-5 shadow-card"
-              >
-                <div className="flex items-start justify-between">
-                  <ServiceIcon type={service.icon} />
-                  <span className={`rounded-pill px-2.5 py-1 text-[11px] font-bold ${service.tagClass}`}>
-                    {service.tag}
-                  </span>
-                </div>
-                <h3 className="mt-4 font-heading text-[16px] font-semibold leading-snug text-heading">
-                  {service.title}
-                </h3>
-                <p className="mt-2 flex-1 text-[13px] leading-relaxed text-muted">{service.body}</p>
-                <p className="mt-6 font-heading text-[28px] font-bold tracking-tight text-primary">
-                  {service.price}
-                  {service.priceNote ? (
-                    <span className="ml-1 text-[13px] font-medium text-teal">{service.priceNote}</span>
-                  ) : null}
-                </p>
-                <p className="mt-1 text-[12px] text-muted">{service.sub}</p>
-              </article>
-            ))}
-          </div>
+          <ServiceDirectory />
 
           <div className="mt-6 flex flex-col gap-3 rounded-card bg-tint-1 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
-            <p className="flex items-start gap-2 text-[13px] text-body sm:items-center">
-              <Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary sm:mt-0" />
-              <span>
-                <span className="font-semibold text-heading">Clinic Guarantee:</span> No hidden processing or equipment
-                fees. Clear itemized invoices settled over-the-counter upon procedure completion.
-              </span>
-            </p>
             <Link
-              href="/login?audience=patient&next=/patient/book"
+              href="/login?next=/patient/book"
               className="shrink-0 text-[13px] font-semibold text-primary hover:text-primary-hover"
             >
               Select a Procedure →
@@ -323,24 +213,7 @@ export function LandingPage() {
             results.
           </p>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {DOCTORS.map((doc, i) => (
-              <article key={`${doc.name}-${i}`} className="overflow-hidden rounded-card bg-white shadow-card">
-                <div className="relative h-[168px] bg-tint-2">
-                  <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-pill bg-white px-2.5 py-1 text-[11px] font-semibold text-heading shadow-card">
-                    <Star className="h-3.5 w-3.5 fill-[#F5B400] text-[#F5B400]" />
-                    4.9 (620 reviews)
-                  </span>
-                </div>
-                <div className="p-5">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-primary">Lead Dentist</p>
-                  <h3 className="mt-1 font-heading text-[16px] font-semibold text-heading">{doc.name}</h3>
-                  <p className="mt-0.5 text-[13px] font-medium text-primary">{doc.specialty}</p>
-                  <p className="mt-2 text-[13px] leading-relaxed text-muted">{doc.bio}</p>
-                </div>
-              </article>
-            ))}
-          </div>
+          <DentistDirectory />
         </div>
       </section>
 
@@ -359,11 +232,11 @@ export function LandingPage() {
             <dl className="mt-3 space-y-2 text-[13px]">
               <div className="flex justify-between gap-6">
                 <dt className="text-muted">Monday - Friday</dt>
-                <dd className="font-medium text-heading">8:00 AM - 7:00 PM</dd>
+                <dd className="font-medium text-heading">8:00 AM - 5:00 PM</dd>
               </div>
               <div className="flex justify-between gap-6">
                 <dt className="text-muted">Saturday</dt>
-                <dd className="font-medium text-heading">9:00 AM - 5:00 PM</dd>
+                <dd className="font-medium text-heading">8:00 AM - 5:00 PM</dd>
               </div>
               <div className="flex justify-between gap-6">
                 <dt className="text-muted">Sunday</dt>

@@ -8,8 +8,9 @@ import { ROLE_HOME, roleFromPath, sessionFromUser, type Session } from "@/lib/au
 type AuthContextValue = {
   session: Session | null;
   ready: boolean;
-  login: (email: string, password: string, next?: string) => Promise<void>;
-  register: (details: RegistrationDetails, next?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (details: RegistrationDetails) => Promise<void>;
+  refreshSession: () => Promise<Session>;
   logout: () => void;
 };
 
@@ -52,40 +53,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const authRevision = useRef(0);
 
-  const acceptAuthResponse = useCallback(async (response: Response, next?: string) => {
+  const refreshSession = useCallback(async () => {
+    const response = await fetch("/api/auth/me", { cache: "no-store" });
+    const data = await readAuthResponse(response);
+    const user = data.user && sessionFromUser(data.user);
+    if (!user) throw new Error("Could not verify the authenticated session.");
+    setSession(user);
+    return user;
+  }, []);
+
+  const acceptAuthResponse = useCallback(async (response: Response) => {
     const data = await readAuthResponse(response);
     const user = data.user && sessionFromUser(data.user);
     if (!user) throw new Error("This account type is not allowed to sign in.");
     setSession(user);
-    const destination = next && (next === `/${user.role}` || next.startsWith(`/${user.role}/`))
-      ? next
-      : ROLE_HOME[user.role];
-    router.replace(destination);
+    router.push(ROLE_HOME[user.role]);
     router.refresh();
   }, [router]);
 
   const login = useCallback(
-    async (email: string, password: string, next?: string) => {
+    async (email: string, password: string) => {
       authRevision.current += 1;
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      await acceptAuthResponse(response, next);
+      await acceptAuthResponse(response);
     },
     [acceptAuthResponse],
   );
 
   const register = useCallback(
-    async (details: RegistrationDetails, next?: string) => {
+    async (details: RegistrationDetails) => {
       authRevision.current += 1;
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(details),
       });
-      await acceptAuthResponse(response, next);
+      await acceptAuthResponse(response);
     },
     [acceptAuthResponse],
   );
@@ -142,15 +149,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.replace(ROLE_HOME[session.role]);
       return;
     }
-    if (pathname === "/clerk" || pathname.startsWith("/clerk/") ||
-        pathname === "/dentist" || pathname.startsWith("/dentist/")) {
+    if (pathname === "/clerk" || pathname.startsWith("/clerk/")) {
       router.replace("/admin");
     }
   }, [pathname, ready, router, session]);
 
   const value = useMemo(
-    () => ({ session, ready, login, register, logout }),
-    [session, ready, login, register, logout],
+    () => ({ session, ready, login, register, refreshSession, logout }),
+    [session, ready, login, register, refreshSession, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

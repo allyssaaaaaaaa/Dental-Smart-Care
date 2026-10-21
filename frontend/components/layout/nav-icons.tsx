@@ -6,6 +6,8 @@ import {
   HelpCircle,
   LayoutGrid,
   LogOut,
+  MessageCircle,
+  Settings,
   Stethoscope,
   UserPlus,
   type LucideIcon,
@@ -21,6 +23,8 @@ export const NAV_ICONS: Record<NavItem["icon"], LucideIcon> = {
   stethoscope: Stethoscope,
   chart: BarChart3,
   barChart: BarChart3,
+  messages: MessageCircle,
+  settings: Settings,
   help: HelpCircle,
   logout: LogOut,
 };

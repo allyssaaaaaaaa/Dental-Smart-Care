@@ -6,6 +6,7 @@ import { Router, Reply, RAW } from "./lib/router.js";
 import { Hub } from "./lib/events.js";
 import { parseCookies, verifyToken, RateLimiter } from "./lib/security.js";
 import { seedIfEmpty } from "./seed.js";
+import { markOverdueAppointmentsNoShow } from "./services/appointment-lifecycle.js";
 
 import authRoutes from "./routes/auth.js";
 import catalogRoutes from "./routes/services.js";
@@ -14,23 +15,38 @@ import patientRoutes from "./routes/patients.js";
 import appointmentRoutes from "./routes/appointments.js";
 import messageRoutes from "./routes/messages.js";
 import adminRoutes from "./routes/admin.js";
+import paymentRoutes from "./routes/payments.js";
 
 
 const MAX_BODY = 100 * 1024;
+const MAX_IMAGE_BODY = 7_200_000;
 
 export function createApp(overrides = {}) {
-  const config = loadConfig(overrides);
-  const db = openDb(config.dbPath);
+  const config = loadConfig({
+    ...overrides,
+    ...(overrides.dbPath === ":memory:" ? { supabaseDbUrl: "" } : {}),
+  });
+  const db = openDb(config.dbPath, config.supabaseDbUrl);
   const hub = new Hub();
   const router = new Router();
   const app = { config, db, hub, router, loginLimiter: new RateLimiter(10, 15 * 60_000) };
+  app.markOverdueAppointmentsNoShow = () => markOverdueAppointmentsNoShow(app);
 
   router.get("/api/health", () => ({ status: "ok", time: config.clock().toISOString() }));
-  for (const register of [authRoutes, catalogRoutes, dentistRoutes, patientRoutes, appointmentRoutes, messageRoutes, adminRoutes]) {
+  for (const register of [authRoutes, catalogRoutes, dentistRoutes, patientRoutes, appointmentRoutes, messageRoutes, adminRoutes, paymentRoutes]) {
     register(router, app);
   }
 
   if (config.seedOnStart) seedIfEmpty(app);
+  app.markOverdueAppointmentsNoShow();
+  const noShowTimer = setInterval(() => {
+    try {
+      app.markOverdueAppointmentsNoShow();
+    } catch (error) {
+      console.error("Could not automatically mark overdue appointments as no-show", error);
+    }
+  }, 60_000);
+  noShowTimer.unref();
 
   const server = http.createServer((req, res) => {
     handle(app, req, res).catch((err) => {
@@ -41,7 +57,12 @@ export function createApp(overrides = {}) {
 
   return {
     app, server,
-    close() { hub.close(); server.closeAllConnections?.(); return new Promise((r) => server.close(() => { db.close(); r(); })); },
+    close() {
+      clearInterval(noShowTimer);
+      hub.close();
+      server.closeAllConnections?.();
+      return new Promise((r) => server.close(() => { db.close(); r(); }));
+    },
   };
 }
 
@@ -51,13 +72,25 @@ function sendJson(res, status, body, headers = {}) {
   res.end(payload);
 }
 
+function isAllowedOrigin(config, origin) {
+  if (config.corsOrigins.includes(origin)) return true;
+  if (config.isProd) return false;
+  try {
+    const url = new URL(origin);
+    return url.protocol === "http:" &&
+      ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function applyCommonHeaders(app, req, res) {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "no-referrer");
   res.setHeader("Cache-Control", "no-store");
   const origin = req.headers.origin;
-  if (origin && app.config.corsOrigins.includes(origin)) {
+  if (origin && isAllowedOrigin(app.config, origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -66,17 +99,18 @@ function applyCommonHeaders(app, req, res) {
   }
 }
 
-async function readJson(req) {
+async function readJson(req, maxBody = MAX_BODY) {
   const chunks = [];
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > MAX_BODY) throw new HttpError(413, "payload_too_large", "Request body too large");
+    if (size > maxBody) throw new HttpError(413, "payload_too_large", "Request body too large");
     chunks.push(chunk);
   }
-  if (!size) return {};
+  if (!size) return { body: {}, rawBody: Buffer.alloc(0) };
+  const rawBody = Buffer.concat(chunks);
   try {
-    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    return { body: JSON.parse(rawBody.toString("utf8")), rawBody };
   } catch {
     throw new HttpError(400, "invalid_json", "Request body is not valid JSON");
   }
@@ -88,36 +122,40 @@ function authenticate(app, req, url) {
   const payload = verifyToken(token, app.config.jwtSecret);
   if (!payload) return null;
   const u = app.db.prepare("SELECT id, role, email, full_name, active FROM users WHERE id = ?").get(payload.sub);
-  if (!u || !u.active) return null;
+  if (!u || !u.active || !["patient", "admin", "clerk"].includes(u.role)) return null;
   return { id: u.id, role: u.role, email: u.email, fullName: u.full_name };
 }
 
 async function handle(app, req, res) {
   const { config, router } = app;
   applyCommonHeaders(app, req, res);
-  if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }
 
   const url = new URL(req.url, "http://localhost");
   const { route, params, pathMatched } = router.match(req.method, url.pathname);
 
   try {
+    if (req.headers.origin && !isAllowedOrigin(config, req.headers.origin)) {
+      throw new HttpError(403, "bad_origin", "Cross-origin request blocked. Add this frontend origin to CORS_ORIGIN.");
+    }
+    if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }
+
     if (!route) {
       if (pathMatched) throw new HttpError(405, "method_not_allowed", "Method not allowed");
       throw notFound("Endpoint");
     }
 
     const mutating = !["GET", "HEAD"].includes(req.method);
-    if (mutating && req.headers.origin && !config.corsOrigins.includes(req.headers.origin)) {
-      throw new HttpError(403, "bad_origin", "Cross-origin request blocked");
-    }
-
-    const body = mutating ? await readJson(req) : undefined;
+    const isImageUpload = req.method === "POST" && /^\/api\/conversations\/\d+\/images\/?$/.test(url.pathname);
+    const requestBody = mutating ? await readJson(req, isImageUpload ? MAX_IMAGE_BODY : MAX_BODY) : undefined;
     const ctx = {
-      app, db: app.db, config, hub: app.hub, req, res, url, params, body,
+      app, db: app.db, config, hub: app.hub, req, res, url, params,
+      body: requestBody?.body, rawBody: requestBody?.rawBody ?? Buffer.alloc(0),
       query: Object.fromEntries(url.searchParams),
       user: authenticate(app, req, url),
       setCookie: [],
     };
+
+    app.markOverdueAppointmentsNoShow();
 
     let result;
     for (const handler of route.handlers) result = await handler(ctx);
@@ -139,7 +177,7 @@ async function handle(app, req, res) {
       const extra = err.status === 413 ? { Connection: "close" } : {};
       return sendJson(res, err.status, { error: { code: err.code, message: err.message, ...(err.details ? { details: err.details } : {}) } }, extra);
     }
-    if (err?.code === "ERR_SQLITE_ERROR" && /UNIQUE/.test(err.message)) {
+    if (["ERR_SQLITE_ERROR", "23505"].includes(err?.code) && /UNIQUE|duplicate key/i.test(err.message)) {
       return sendJson(res, 409, { error: { code: "duplicate", message: "A record with these details already exists" } });
     }
     console.error(`[${req.method} ${url.pathname}]`, err);
